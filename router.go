@@ -5,7 +5,10 @@
 
 package router
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 const (
 	normalNode = iota
@@ -36,6 +39,11 @@ func newRouter() *router {
 	}
 }
 
+// 增加路由
+// 使用/:id冒号+path参数名称标识path类型参数
+// /* 表示通配后续所有的路径，如果需要单独指定，则需要放在通配符加入路由之前。
+//    addRoute: "/hello/world"
+//    addRoute: "/hello/*"
 func (r *router) addRoute(addr string, v interface{}) {
 	if addr == "" || addr[0] != '/' {
 		panic("invalid address")
@@ -49,6 +57,10 @@ func (r *router) match(addr string) (interface{}, error) {
 		return v.Get(true), err
 	}
 	return v, err
+}
+
+func (r *router) matchAddress(addr string, m *map[string]string) (interface{}, error) {
+	return r.nodes.matchString(addr, m)
 }
 
 func (r *router) matchNode(addr string) (*node, error) {
@@ -151,6 +163,50 @@ func (n *node) match(other *node) (*node, error) {
 	} else {
 		return nil, errors.New("other's children must be 1")
 	}
+	return nil, errors.New("not found")
+}
+
+// 提取符合paths路径的node
+func (n *node) matchString(addr string, m *map[string]string) (interface{}, error) {
+	if addr == "" || addr[0] != '/' {
+		return nil, errors.New("invalid address")
+	}
+	paths := strings.Split(addr[1:], "/")
+	p := make([]string, 0, len(paths)+1)
+	p = append(p, "/")
+	p = append(p, paths...)
+	return n.matchPaths(p, m)
+}
+
+// 提取符合paths路径的node
+func (n *node) matchPaths(paths []string, m *map[string]string) (interface{}, error) {
+	if len(paths) == 0 || paths[0] == "" {
+		return n.v, nil
+	}
+	if n.nType == wildcardNode {
+		return n.v, nil
+	}
+
+	if n.nType == normalNode {
+		if n.path != paths[0] {
+			return nil, errors.New("path not match")
+		}
+	}
+
+	if n.nType == pathParamNode && m != nil {
+		(*m)[n.path] = paths[0]
+	}
+
+	if len(paths) > 1 {
+		for _, v := range n.children {
+			if ret, err := v.matchPaths(paths[1:], m); err == nil {
+				return ret, nil
+			}
+		}
+	} else {
+		return n.v, nil
+	}
+
 	return nil, errors.New("not found")
 }
 

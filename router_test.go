@@ -140,6 +140,84 @@ func TestPathMap(t *testing.T) {
 	}
 }
 
+func TestMatchString(t *testing.T) {
+	r := newRouter()
+	r.addRoute("/", "/")
+	r.addRoute("/hello", "/hello")
+	r.addRoute("/hello/:id", "/hello/:id")
+	r.addRoute("/hello/:id/world", "/hello/:id/world")
+	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.addRoute("/test", "/test")
+	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+
+	v, err := r.matchAddress("/hello", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if v.(string) != "/hello" {
+		t.Fatal("not match")
+	}
+
+	ret := map[string]string{}
+	v, err = r.matchAddress("/hello/12", &ret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if v.(string) != "/hello/:id" {
+		t.Fatal("not match")
+	}
+	for k, v := range ret {
+		t.Log(k, v)
+	}
+	if ret[":id"] != "12" {
+		t.Fatal("not match")
+	}
+
+	ret = map[string]string{}
+	v, err = r.matchAddress("/hello/12/world/user/wwxx", &ret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if v.(string) != "/hello/:id/world/:name/*" {
+		t.Fatal("not match")
+	}
+	for k, v := range ret {
+		t.Log(k, v)
+	}
+	if ret[":id"] != "12" || ret[":name"] != "user" {
+		t.Fatal("not match")
+	}
+
+	ret = map[string]string{}
+	v, err = r.matchAddress("/hello/12/world/user/test", &ret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	//注意：通配符在前，则覆盖其他的
+	if v.(string) != "/hello/:id/world/:name/*" {
+		t.Fatal("not match")
+	}
+	for k, v := range ret {
+		t.Log(k, v)
+	}
+	if ret[":id"] != "12" || ret[":name"] != "user" {
+		t.Fatal("not match")
+	}
+
+	ret = map[string]string{}
+	v, err = r.matchAddress("/hello/12/xxx/user/test", &ret)
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		t.Log(err)
+	}
+}
+
 func TestUse(t *testing.T) {
 	r := newRouter()
 	r.addRoute("/host", "/api/v1/test/host")

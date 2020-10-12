@@ -9,17 +9,22 @@ import "testing"
 
 func TestRouter(t *testing.T) {
 	r := newRouter()
-	r.addRoute("/", "/")
-	r.addRoute("/hello", "/hello")
-	r.addRoute("/hello/:id", "/hello/:id")
-	r.addRoute("/hello/:id/world", "/hello/:id/world")
-	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
-	r.addRoute("/test", "/test")
-	r.addRoute("/hello/:id/world", "/hello/:id/world2")
-	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
-	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
-	//覆盖r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")的value
-	r.addRoute("/hello/:id/world/:name/*/test", "/hello/:id/world/:name/*/test")
+	r.AddRoute("/", "/")
+	r.AddRoute("/hello", "/hello")
+	r.AddRoute("/hello/:id", "/hello/:id")
+	r.AddRoute("/hello/:id/world", "/hello/:id/world")
+	r.AddRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.AddRoute("/test", "/test")
+	r.AddRoute("/hello/:id/world", "/hello/:id/world2")
+	r.AddRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.AddRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+	//在/hello/:id/world/:name/*不允许添加其他的路径
+	err := r.AddRoute("/hello/:id/world/:name/*/test", "/hello/:id/world/:name/*/test")
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		t.Log(err)
+	}
 
 	t.Log(r.nodes.path, r.nodes.v)
 	if r.nodes.v.(string) != "/" {
@@ -48,10 +53,11 @@ func TestRouter(t *testing.T) {
 					}
 					for _, v := range v.children {
 						t.Log(v.path, v.v)
-						if (v.path != "*" || v.v.(string) != "/hello/:id/world/:name/*/test") &&
+						if (v.path != "*" || v.v.(string) != "/hello/:id/world/:name/*") &&
 							(v.path != "test" || v.v.(string) != "/hello/:id/world/:name/test") {
 							t.Fatal("not match")
 						}
+						//cannot be here
 						for _, v := range v.children {
 							t.Log(v.path, v.v)
 							if v.path == "test" || v.v.(string) == "/hello/:id/world/:name/*/test" {
@@ -67,16 +73,16 @@ func TestRouter(t *testing.T) {
 
 func TestMatch(t *testing.T) {
 	r := newRouter()
-	r.addRoute("/", "/")
-	r.addRoute("/hello", "/hello")
-	r.addRoute("/hello/:id", "/hello/:id")
-	r.addRoute("/hello/:id/world", "/hello/:id/world")
-	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
-	r.addRoute("/test", "/test")
-	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
-	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+	r.AddRoute("/", "/")
+	r.AddRoute("/hello", "/hello")
+	r.AddRoute("/hello/:id", "/hello/:id")
+	r.AddRoute("/hello/:id/world", "/hello/:id/world")
+	r.AddRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.AddRoute("/test", "/test")
+	r.AddRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.AddRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
 
-	v, err := r.match("/hello/12/world")
+	v, err := r.Find("/hello/12/world")
 	if err != nil {
 		t.Fatal(err)
 	} else {
@@ -86,14 +92,14 @@ func TestMatch(t *testing.T) {
 		}
 	}
 
-	v, err = r.match("/hello/12/xx")
+	v, err = r.Find("/hello/12/xx")
 	if err == nil {
 		t.Fatal(err)
 	} else {
 		t.Log(v, err)
 	}
 
-	v, err = r.match("/hello/12/world/user/wwxx")
+	v, err = r.Find("/hello/12/world/user/wwxx")
 	if err != nil {
 		t.Fatal(err)
 	} else {
@@ -103,7 +109,7 @@ func TestMatch(t *testing.T) {
 		}
 	}
 
-	v, err = r.match("/hello/12/world/user/wwxx/dasdas")
+	v, err = r.Find("/hello/12/world/user/wwxx/dasdas")
 	if err != nil {
 		t.Fatal(err)
 	} else {
@@ -116,14 +122,14 @@ func TestMatch(t *testing.T) {
 
 func TestPathMap(t *testing.T) {
 	r := newRouter()
-	r.addRoute("/", "/")
-	r.addRoute("/hello", "/hello")
-	r.addRoute("/hello/:id", "/hello/:id")
-	r.addRoute("/hello/:id/world", "/hello/:id/world")
-	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
-	r.addRoute("/test", "/test")
-	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
-	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+	r.AddRoute("/", "/")
+	r.AddRoute("/hello", "/hello")
+	r.AddRoute("/hello/:id", "/hello/:id")
+	r.AddRoute("/hello/:id/world", "/hello/:id/world")
+	r.AddRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.AddRoute("/test", "/test")
+	r.AddRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.AddRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
 
 	v, err := r.matchNode("/hello/12/world/user/wwxx")
 	if err != nil {
@@ -142,16 +148,25 @@ func TestPathMap(t *testing.T) {
 
 func TestMatchString(t *testing.T) {
 	r := newRouter()
-	r.addRoute("/", "/")
-	r.addRoute("/hello", "/hello")
-	r.addRoute("/hello/:id", "/hello/:id")
-	r.addRoute("/hello/:id/world", "/hello/:id/world")
-	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
-	r.addRoute("/test", "/test")
-	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
-	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+	r.AddRoute("/", "/")
+	r.AddRoute("/hello", "/hello")
+	r.AddRoute("/hello/:id", "/hello/:id")
+	r.AddRoute("/hello/:id/world", "/hello/:id/world")
+	r.AddRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.AddRoute("/test", "/test")
+	r.AddRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.AddRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
 
-	v, err := r.matchAddress("/hello", nil)
+	v, err := r.Match("/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if v.(string) != "/" {
+		t.Fatal("not match")
+	}
+
+	v, err = r.Match("/hello", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +176,7 @@ func TestMatchString(t *testing.T) {
 	}
 
 	ret := map[string]string{}
-	v, err = r.matchAddress("/hello/12", &ret)
+	v, err = r.Match("/hello/12", &ret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +192,7 @@ func TestMatchString(t *testing.T) {
 	}
 
 	ret = map[string]string{}
-	v, err = r.matchAddress("/hello/12/world/user/wwxx", &ret)
+	v, err = r.Match("/hello/12/world/user/wwxx", &ret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +208,7 @@ func TestMatchString(t *testing.T) {
 	}
 
 	ret = map[string]string{}
-	v, err = r.matchAddress("/hello/12/world/user/test", &ret)
+	v, err = r.Match("/hello/12/world/user/test", &ret)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +225,7 @@ func TestMatchString(t *testing.T) {
 	}
 
 	ret = map[string]string{}
-	v, err = r.matchAddress("/hello/12/xxx/user/test", &ret)
+	v, err = r.Match("/hello/12/xxx/user/test", &ret)
 	if err == nil {
 		t.Fatal(err)
 	} else {
@@ -220,7 +235,7 @@ func TestMatchString(t *testing.T) {
 
 func TestUse(t *testing.T) {
 	r := newRouter()
-	r.addRoute("/host", "/api/v1/test/host")
-	r.addRoute("/host/:id", "/api/v1/test/host/:id")
-	r.addRoute("/all/pass/*", "/api/v1/*")
+	r.AddRoute("/host", "/api/v1/test/host")
+	r.AddRoute("/host/:id", "/api/v1/test/host/:id")
+	r.AddRoute("/all/pass/*", "/api/v1/*")
 }

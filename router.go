@@ -41,17 +41,18 @@ func newRouter() *router {
 
 // 增加路由
 // 使用/:id冒号+path参数名称标识path类型参数
-// /* 表示通配后续所有的路径，如果需要单独指定，则需要放在通配符加入路由之前。
-//    addRoute: "/hello/world"
-//    addRoute: "/hello/*"
-func (r *router) addRoute(addr string, v interface{}) {
+// '*' 表示通配后续所有的路径，如果需要单独指定，则需要放在通配符加入路由之前。
+//    AddRoute: "/hello/world"
+//    AddRoute: "/hello/*"
+// 注意'*'通配符之后不允许添加任何路径字符
+func (r *router) AddRoute(addr string, v interface{}) error {
 	if addr == "" || addr[0] != '/' {
 		panic("invalid address")
 	}
-	r.nodes.parseNode(addr[1:], v)
+	return r.nodes.parseNode(addr[1:], v)
 }
 
-func (r *router) match(addr string) (interface{}, error) {
+func (r *router) Find(addr string) (interface{}, error) {
 	v, err := r.matchNode(addr)
 	if v != nil {
 		return v.Get(true), err
@@ -59,7 +60,12 @@ func (r *router) match(addr string) (interface{}, error) {
 	return v, err
 }
 
-func (r *router) matchAddress(addr string, m *map[string]string) (interface{}, error) {
+// 查询router中是否有匹配路径的路由
+// Param: addr 用于匹配的路径
+// Param: m 用于存储PathParam路径参数的map，key为“:变量”，value为addr中实际的值
+// Return: interface{} 添加路由时传入的value
+// Return: error 发生错误时抛出
+func (r *router) Match(addr string, m *map[string]string) (interface{}, error) {
 	return r.nodes.matchString(addr, m)
 }
 
@@ -171,11 +177,12 @@ func (n *node) matchString(addr string, m *map[string]string) (interface{}, erro
 	if addr == "" || addr[0] != '/' {
 		return nil, errors.New("invalid address")
 	}
-	paths := strings.Split(addr[1:], "/")
-	p := make([]string, 0, len(paths)+1)
-	p = append(p, "/")
-	p = append(p, paths...)
-	return n.matchPaths(p, m)
+	if addr == "/" {
+		return n.v, nil
+	}
+	paths := strings.Split(addr, "/")
+	paths[0] = "/"
+	return n.matchPaths(paths, m)
 }
 
 // 提取符合paths路径的node
@@ -228,14 +235,17 @@ func (n *node) equal(other *node) bool {
 	return true
 }
 
-func (n *node) parseNode(addr string, value interface{}) {
+func (n *node) parseNode(addr string, value interface{}) error {
 	if addr == "" {
 		n.v = value
-		return
+		return nil
 	}
 	i, start := 0, 0
 	nType := normalNode
 	if addr[0] == '*' {
+		if len(addr) > 1 {
+			return errors.New("Cannot have other characters after '*' ")
+		}
 		i = 1
 		nType = wildcardNode
 	} else {
@@ -283,8 +293,9 @@ func (n *node) parseNode(addr string, value interface{}) {
 	}
 
 	if i < len(addr) && tmp.nType != wildcardNode {
-		tmp.parseNode(addr[i+1:], value)
+		return tmp.parseNode(addr[i+1:], value)
 	} else {
 		tmp.v = value
 	}
+	return nil
 }

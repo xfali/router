@@ -16,7 +16,15 @@ func TestRouter(t *testing.T) {
 	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
 	r.addRoute("/test", "/test")
 	r.addRoute("/hello/:id/world", "/hello/:id/world2")
+	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+	//覆盖r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")的value
+	r.addRoute("/hello/:id/world/:name/*/test", "/hello/:id/world/:name/*/test")
 
+	t.Log(r.nodes.path, r.nodes.v)
+	if r.nodes.v.(string) != "/" {
+		t.Fatal("not match")
+	}
 	for _, v := range r.nodes.children {
 		t.Log(v.path, v.v)
 		if (v.path != "hello" || v.v.(string) != "/hello") &&
@@ -38,8 +46,103 @@ func TestRouter(t *testing.T) {
 					if v.path != ":name" || v.v.(string) != "/hello/:id/world/:name" {
 						t.Fatal("not match")
 					}
+					for _, v := range v.children {
+						t.Log(v.path, v.v)
+						if (v.path != "*" || v.v.(string) != "/hello/:id/world/:name/*/test") &&
+							(v.path != "test" || v.v.(string) != "/hello/:id/world/:name/test") {
+							t.Fatal("not match")
+						}
+						for _, v := range v.children {
+							t.Log(v.path, v.v)
+							if v.path == "test" || v.v.(string) == "/hello/:id/world/:name/*/test" {
+								t.Fatal("not match")
+							}
+						}
+					}
 				}
 			}
 		}
 	}
+}
+
+func TestMatch(t *testing.T) {
+	r := newRouter()
+	r.addRoute("/", "/")
+	r.addRoute("/hello", "/hello")
+	r.addRoute("/hello/:id", "/hello/:id")
+	r.addRoute("/hello/:id/world", "/hello/:id/world")
+	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.addRoute("/test", "/test")
+	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+
+	v, err := r.match("/hello/12/world")
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v.(string))
+		if v.(string) != "/hello/:id/world" {
+			t.Fatal("not match")
+		}
+	}
+
+	v, err = r.match("/hello/12/xx")
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v, err)
+	}
+
+	v, err = r.match("/hello/12/world/user/wwxx")
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v.(string))
+		if v.(string) != "/hello/:id/world/:name/*" {
+			t.Fatal("not match")
+		}
+	}
+
+	v, err = r.match("/hello/12/world/user/wwxx/dasdas")
+	if err != nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v.(string))
+		if v.(string) != "/hello/:id/world/:name/*" {
+			t.Fatal("not match")
+		}
+	}
+}
+
+func TestPathMap(t *testing.T) {
+	r := newRouter()
+	r.addRoute("/", "/")
+	r.addRoute("/hello", "/hello")
+	r.addRoute("/hello/:id", "/hello/:id")
+	r.addRoute("/hello/:id/world", "/hello/:id/world")
+	r.addRoute("/hello/:id/world/:name", "/hello/:id/world/:name")
+	r.addRoute("/test", "/test")
+	r.addRoute("/hello/:id/world/:name/*", "/hello/:id/world/:name/*")
+	r.addRoute("/hello/:id/world/:name/test", "/hello/:id/world/:name/test")
+
+	v, err := r.matchNode("/hello/12/world/user/wwxx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := parseNode("/hello/12/world/user/wwxx")
+	ret := map[string]string{}
+	v.pathMap(node, &ret)
+	for k, v := range ret {
+		t.Log(k, v)
+	}
+	if ret[":id"] != "12" || ret[":name"] != "user" {
+		t.Fatal("not match")
+	}
+}
+
+func TestUse(t *testing.T) {
+	r := newRouter()
+	r.addRoute("/host", "/api/v1/test/host")
+	r.addRoute("/host/:id", "/api/v1/test/host/:id")
+	r.addRoute("/all/pass/*", "/api/v1/*")
 }

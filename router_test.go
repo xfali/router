@@ -8,7 +8,7 @@ package router
 import "testing"
 
 func TestRouter(t *testing.T) {
-	r := newRouter()
+	r := New()
 	r.AddRoute("/", "/")
 	r.AddRoute("/hello", "/hello")
 	r.AddRoute("/hello/:id", "/hello/:id")
@@ -72,7 +72,7 @@ func TestRouter(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
-	r := newRouter()
+	r := New()
 	r.AddRoute("/", "/")
 	r.AddRoute("/hello", "/hello")
 	r.AddRoute("/hello/:id", "/hello/:id")
@@ -121,7 +121,7 @@ func TestMatch(t *testing.T) {
 }
 
 func TestPathMap(t *testing.T) {
-	r := newRouter()
+	r := New()
 	r.AddRoute("/", "/")
 	r.AddRoute("/hello", "/hello")
 	r.AddRoute("/hello/:id", "/hello/:id")
@@ -147,7 +147,7 @@ func TestPathMap(t *testing.T) {
 }
 
 func TestMatchString(t *testing.T) {
-	r := newRouter()
+	r := New()
 	r.AddRoute("/", "/")
 	r.AddRoute("/hello", "/hello")
 	r.AddRoute("/hello/:id", "/hello/:id")
@@ -234,7 +234,7 @@ func TestMatchString(t *testing.T) {
 }
 
 func TestUse(t *testing.T) {
-	r := newRouter()
+	r := New()
 	r.AddRoute("/host", "/api/v1/test/host")
 	r.AddRoute("/host/:id", "/api/v1/test/host/:id")
 	r.AddRoute("/all/pass/*", "/api/v1/*")

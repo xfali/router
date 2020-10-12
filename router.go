@@ -29,7 +29,7 @@ type router struct {
 	nodes *node
 }
 
-func newRouter() *router {
+func New() *router {
 	n := &node{
 		path:  "/",
 		nType: normalNode,

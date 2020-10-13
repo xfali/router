@@ -25,16 +25,16 @@ type node struct {
 	v interface{}
 }
 
-type router struct {
+type Router struct {
 	nodes *node
 }
 
-func New() *router {
+func New() *Router {
 	n := &node{
 		path:  "/",
 		nType: normalNode,
 	}
-	return &router{
+	return &Router{
 		nodes: n,
 	}
 }
@@ -45,14 +45,14 @@ func New() *router {
 //    AddRoute: "/hello/world"
 //    AddRoute: "/hello/*"
 // 注意'*'通配符之后不允许添加任何路径字符
-func (r *router) AddRoute(addr string, v interface{}) error {
+func (r *Router) AddRoute(addr string, v interface{}) error {
 	if addr == "" || addr[0] != '/' {
 		panic("invalid address")
 	}
 	return r.nodes.parseNode(addr[1:], v)
 }
 
-func (r *router) Find(addr string) (interface{}, error) {
+func (r *Router) Find(addr string) (interface{}, error) {
 	v, err := r.matchNode(addr)
 	if v != nil {
 		return v.Get(true), err
@@ -65,11 +65,11 @@ func (r *router) Find(addr string) (interface{}, error) {
 // Param: m 用于存储PathParam路径参数的map，key为“:变量”，value为addr中实际的值
 // Return: interface{} 添加路由时传入的value
 // Return: error 发生错误时抛出
-func (r *router) Match(addr string, m *map[string]string) (interface{}, error) {
+func (r *Router) Match(addr string, m *map[string]string) (interface{}, error) {
 	return r.nodes.matchString(addr, m)
 }
 
-func (r *router) matchNode(addr string) (*node, error) {
+func (r *Router) matchNode(addr string) (*node, error) {
 	node := parseNode(addr)
 	if node == nil {
 		return nil, errors.New("cannot parse address")

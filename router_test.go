@@ -192,7 +192,7 @@ func TestMatchString(t *testing.T) {
 	}
 
 	ret = map[string]string{}
-	v, err = r.Match("/hello/12/world/user/wwxx", &ret)
+	v, err = r.Match("/hello/12/world/user/wwxx?xx", &ret)
 	if err != nil {
 		t.Fatal(err)
 	}

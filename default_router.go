@@ -10,9 +10,17 @@ import (
 )
 
 const (
-	normalNode = iota
-	pathParamNode
-	wildcardNode
+	// 无属性
+	noneProp      = 0
+	// 标识是最后的节点
+	lastProp      = 1
+
+	// 普通节点
+	normalNode    = 1
+	// 带路径参数节点
+	pathParamNode = 2
+	// 通配符节点
+	wildcardNode  = 3
 )
 
 var (
@@ -24,6 +32,7 @@ var (
 type node struct {
 	fullPath string
 	nType    int8
+	nProp    int8
 	children []*node
 	path     string
 
@@ -90,6 +99,7 @@ func parseNode(addr string) *node {
 		fullPath: addr,
 		path:     "/",
 		nType:    normalNode,
+		nProp:    lastProp,
 	}
 	n.parseNode(addr[1:], nil)
 	return n
@@ -191,6 +201,10 @@ func (n *node) matchString(addr string, m *map[string]string) (interface{}, erro
 	return n.matchPaths(paths, m)
 }
 
+func (n *node) isLast() bool {
+	return n.nProp&lastProp == 1
+}
+
 // 提取符合paths路径的node
 func (n *node) matchPaths(paths []string, m *map[string]string) (interface{}, error) {
 	if len(paths) == 0 || paths[0] == "" {
@@ -217,7 +231,11 @@ func (n *node) matchPaths(paths []string, m *map[string]string) (interface{}, er
 			}
 		}
 	} else {
-		return n.v, nil
+		if n.isLast() {
+			return n.v, nil
+		} else {
+			return nil, NotMatchError
+		}
 	}
 
 	return nil, NotMatchError
@@ -246,9 +264,9 @@ func (n *node) parseNode(addr string, value interface{}) error {
 		n.v = value
 		return nil
 	}
-	finished := false
 	i, start := 0, 0
-	nType := normalNode
+	var nType int8 = normalNode
+	var nProp int8 = noneProp
 	if addr[0] == '*' {
 		if len(addr) > 1 {
 			// Cannot have other characters after '*'
@@ -263,7 +281,7 @@ func (n *node) parseNode(addr string, value interface{}) error {
 			} else if addr[i] == '/' {
 				break
 			} else if addr[i] == '?' {
-				finished = true
+				nProp = lastProp
 				break
 			}
 		}
@@ -294,16 +312,21 @@ func (n *node) parseNode(addr string, value interface{}) error {
 		}
 	}
 
+	if i == len(addr) {
+		nProp = lastProp
+	}
+
 	if tmp == nil {
 		tmp = &node{
 			path:     addr[start:i],
 			fullPath: addr,
-			nType:    int8(nType),
+			nType:    nType,
+			nProp:    nProp,
 		}
 		n.children = append(n.children, tmp)
 	}
 
-	if !finished && i < len(addr) && tmp.nType != wildcardNode {
+	if nProp&lastProp == 0 && tmp.nType != wildcardNode {
 		return tmp.parseNode(addr[i+1:], value)
 	} else {
 		tmp.v = value

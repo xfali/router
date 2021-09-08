@@ -233,6 +233,26 @@ func TestMatchString(t *testing.T) {
 	}
 }
 
+func Test2MatchString(t *testing.T) {
+	r := New()
+	r.AddRoute("/hello/:id/world", "/hello/:id/world")
+	ret := map[string]string{}
+	v, err := r.Match("/hello/1234", &ret)
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v, err)
+	}
+
+	ret = map[string]string{}
+	v, err = r.Match("/hello/1234?123=12", &ret)
+	if err == nil {
+		t.Fatal(err)
+	} else {
+		t.Log(v, err)
+	}
+}
+
 func TestUse(t *testing.T) {
 	r := New()
 	r.AddRoute("/host", "/api/v1/test/host")
